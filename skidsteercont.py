@@ -23,7 +23,7 @@ from time import gmtime, strftime
 #params = torch.tensor((10., 1., 1.))
 dx = skidsteer.SkidSteerDx(simple=True)
 
-n_batch, T, mpc_T = 16, 100, 20
+n_batch, T, mpc_T = 16, 60, 20
 
 def uniform(shape, low, high):
     r = high-low
@@ -31,8 +31,8 @@ def uniform(shape, low, high):
 
 torch.manual_seed(0)
 x = uniform(n_batch, -.05, .05)
-y = uniform(n_batch, -.05, .05)
-th = uniform(n_batch, -.05, .05)
+y = uniform(n_batch, -.5, .5)
+th = uniform(n_batch, -.15, .15)
 xinit = torch.stack((x, y, th), dim=1)
 
 x = xinit
@@ -46,7 +46,7 @@ mode = 'swingup'
 # mode = 'spin'
 
 if mode == 'swingup':
-    goal_weights = torch.Tensor((1., 1., 0.1))
+    goal_weights = torch.Tensor((1.5, 1.5, 1.))
     goal_state = torch.Tensor((2., 1. ,0.))
     ctrl_penalty = 0.001
     q = torch.cat((
@@ -69,6 +69,9 @@ elif mode == 'spin':
 t_dir = tempfile.mkdtemp()
 print('Tmp dir: {}'.format(t_dir))
 
+x_rec =[x]
+cum_cost = 0;
+
 for t in tqdm(range(T)):
     nominal_states, nominal_actions, nominal_objs = mpc.MPC(
         dx.n_state, dx.n_ctrl, mpc_T,
@@ -89,6 +92,11 @@ for t in tqdm(range(T)):
     u_init[-2] = u_init[-3]
     x = dx(x, next_action)
 
+    #print(x)
+    for row in x:
+      cum_cost = cum_cost + torch.norm(row - goal_state)
+
+    x_rec.append(x)
     n_row, n_col = 4, 4
     fig, axs = plt.subplots(n_row, n_col, figsize=(3*n_col,3*n_row))
     axs = axs.reshape(-1)
@@ -118,3 +126,7 @@ encoded = base64.b64encode(video)
 HTML(data='''<video alt="test" controls>
                 <source src="data:video/mp4;base64,{0}" type="video/mp4" />
              </video>'''.format(encoded.decode('ascii')))
+print("Cost vector: <cx, cy, cth> = <%.3f, %.3f, %.3f>" 
+      % (goal_weights[0], goal_weights[1], goal_weights[2]))
+print("Cumulative cost of %.2f" % cum_cost)
+

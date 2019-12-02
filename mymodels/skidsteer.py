@@ -112,8 +112,9 @@ class SkidSteerDx(nn.Module):
         dys = length_2 * torch.sin(-th)
         
         ax.plot((x+dxs,x+dxe), (y+dys, y+dye), color='k')
-        ax.set_xlim((-1.0, 7.0))
-        ax.set_ylim((-1.0, 7.0))
+        ax.plot([1.9, 2.1], [1, 1], color='r') 
+        ax.set_xlim((-.25, 3.0))
+        ax.set_ylim((-.25, 3.0))
         return fig, ax
 
     def get_true_obj(self):
